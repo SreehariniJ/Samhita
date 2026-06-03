@@ -1,0 +1,1380 @@
+openapi: 3.1.0
+info:
+  title: Samhita AI Private Assistant API
+  version: 1.0.0-phase1
+  description: Local-only FastAPI contract for a private-intranet multimodal enterprise assistant.
+servers:
+  - url: /api/v1
+security:
+  - cookieSession: []
+paths:
+  /auth/login:
+    post:
+      summary: Create an authenticated session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated user and CSRF token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMeResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/logout:
+    post:
+      summary: Revoke current session
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      responses:
+        "204":
+          description: Session revoked
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/me:
+    get:
+      summary: Return the current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMeResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/password:
+    post:
+      summary: Change current user's password
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "204":
+          description: Password changed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /conversations:
+    get:
+      summary: List conversations visible to the current user
+      parameters:
+        - name: archived
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationListResponse"
+    post:
+      summary: Create a conversation
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConversationRequest"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+  /conversations/search:
+    post:
+      summary: Search conversations by title and messages
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchConversationsRequest"
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationListResponse"
+  /conversations/{conversation_id}:
+    get:
+      summary: Get conversation metadata
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      responses:
+        "200":
+          description: Conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      summary: Update conversation metadata
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateConversationRequest"
+      responses:
+        "200":
+          description: Updated conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+    delete:
+      summary: Soft-delete a conversation
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+        - $ref: "#/components/parameters/CsrfHeader"
+      responses:
+        "204":
+          description: Conversation deleted
+  /conversations/{conversation_id}/messages:
+    get:
+      summary: List conversation messages
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageListResponse"
+  /chat/completions/stream:
+    post:
+      summary: Stream a chat completion with optional retrieval and citations
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatCompletionRequest"
+      responses:
+        "200":
+          description: Server-Sent Events stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /chat/completions:
+    post:
+      summary: Create a non-streaming chat completion
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatCompletionRequest"
+      responses:
+        "200":
+          description: Completed assistant message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatCompletionResponse"
+  /chat/title:
+    post:
+      summary: Generate or refresh a conversation title
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [conversation_id]
+              properties:
+                conversation_id:
+                  type: string
+      responses:
+        "200":
+          description: Updated title
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [conversation]
+                properties:
+                  conversation:
+                    $ref: "#/components/schemas/Conversation"
+  /files:
+    get:
+      summary: List files visible to current user
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileListResponse"
+    post:
+      summary: Upload a file and enqueue ingestion
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                visibility:
+                  $ref: "#/components/schemas/Visibility"
+      responses:
+        "201":
+          description: Uploaded file and ingestion job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileUploadResponse"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+  /files/{file_id}:
+    get:
+      summary: Get file metadata
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      responses:
+        "200":
+          description: File
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileRecord"
+    delete:
+      summary: Delete file and derived artifacts
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+        - $ref: "#/components/parameters/CsrfHeader"
+      responses:
+        "204":
+          description: File deleted
+  /files/{file_id}/download:
+    get:
+      summary: Download original file
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      responses:
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+  /files/{file_id}/preview:
+    get:
+      summary: Preview parsed file content
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      responses:
+        "200":
+          description: File preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilePreviewResponse"
+  /ingestion/jobs:
+    post:
+      summary: Create ingestion job for an uploaded file
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_id]
+              properties:
+                file_id:
+                  type: string
+      responses:
+        "201":
+          description: Ingestion job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestionJob"
+  /ingestion/jobs/{job_id}:
+    get:
+      summary: Get ingestion job status
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Ingestion job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestionJob"
+  /ingestion/jobs/{job_id}/retry:
+    post:
+      summary: Retry failed ingestion job
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+        - $ref: "#/components/parameters/CsrfHeader"
+      responses:
+        "200":
+          description: Retried job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestionJob"
+  /search:
+    post:
+      summary: Hybrid search over accessible documents
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+  /citations/{citation_id}:
+    get:
+      summary: Get citation detail
+      parameters:
+        - $ref: "#/components/parameters/CitationId"
+      responses:
+        "200":
+          description: Citation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Citation"
+  /citations/{citation_id}/source:
+    get:
+      summary: Get source preview for a citation
+      parameters:
+        - $ref: "#/components/parameters/CitationId"
+      responses:
+        "200":
+          description: Citation source preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CitationSourceResponse"
+  /settings/me:
+    get:
+      summary: Get current user's settings
+      responses:
+        "200":
+          description: User settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSettings"
+    patch:
+      summary: Update current user's settings
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserSettingsUpdate"
+      responses:
+        "200":
+          description: User settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSettings"
+  /settings/system:
+    get:
+      summary: Get system settings
+      responses:
+        "200":
+          description: System settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemSettings"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    patch:
+      summary: Update system settings
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SystemSettings"
+      responses:
+        "200":
+          description: System settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemSettings"
+  /models:
+    get:
+      summary: Get configured local model profiles and LM Studio status
+      responses:
+        "200":
+          description: Model status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelStatusResponse"
+  /health/live:
+    get:
+      summary: Liveness probe
+      security: []
+      responses:
+        "200":
+          description: Live
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /health/ready:
+    get:
+      summary: Readiness probe
+      security: []
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /metrics/summary:
+    get:
+      summary: Local metrics summary for admins
+      responses:
+        "200":
+          description: Metrics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetricsSummary"
+  /admin/audit-events:
+    get:
+      summary: Search audit events
+      parameters:
+        - name: event_type
+          in: query
+          schema:
+            type: string
+        - name: actor_user_id
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        "200":
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditEvent"
+  /admin/users:
+    get:
+      summary: List users
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+    post:
+      summary: Create a user
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+  /admin/users/{user_id}:
+    patch:
+      summary: Update a user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+components:
+  securitySchemes:
+    cookieSession:
+      type: apiKey
+      in: cookie
+      name: samhita_session
+  parameters:
+    CsrfHeader:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema:
+        type: string
+    ConversationId:
+      name: conversation_id
+      in: path
+      required: true
+      schema:
+        type: string
+    FileId:
+      name: file_id
+      in: path
+      required: true
+      schema:
+        type: string
+    JobId:
+      name: job_id
+      in: path
+      required: true
+      schema:
+        type: string
+    CitationId:
+      name: citation_id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    PayloadTooLarge:
+      description: Payload too large
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnsupportedMediaType:
+      description: Unsupported media type
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: Dependency unavailable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 12
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 12
+    AuthMeResponse:
+      type: object
+      required: [user, csrf_token]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        csrf_token:
+          type: string
+    User:
+      type: object
+      required: [id, workspace_id, email, display_name, roles, status, created_at]
+      properties:
+        id:
+          type: string
+        workspace_id:
+          type: string
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Role"
+        status:
+          type: string
+          enum: [active, disabled]
+        created_at:
+          type: string
+          format: date-time
+    Role:
+      type: string
+      enum: [user, power_user, admin]
+    Visibility:
+      type: string
+      enum: [private, workspace]
+    Conversation:
+      type: object
+      required: [id, title, visibility, pinned, archived, created_at, updated_at, last_message_at, message_count]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        visibility:
+          $ref: "#/components/schemas/Visibility"
+        pinned:
+          type: boolean
+        archived:
+          type: boolean
+        model_profile:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_message_at:
+          type: string
+          format: date-time
+        message_count:
+          type: integer
+    ConversationListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Conversation"
+        next_cursor:
+          type: string
+          nullable: true
+    CreateConversationRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 160
+        model_profile:
+          type: string
+          default: reasoning
+    UpdateConversationRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 160
+        pinned:
+          type: boolean
+        archived:
+          type: boolean
+        visibility:
+          $ref: "#/components/schemas/Visibility"
+        shared_user_ids:
+          type: array
+          items:
+            type: string
+    SearchConversationsRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          minLength: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+    Message:
+      type: object
+      required: [id, conversation_id, role, content, status, created_at]
+      properties:
+        id:
+          type: string
+        conversation_id:
+          type: string
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessagePart"
+        status:
+          type: string
+          enum: [queued, streaming, complete, interrupted, failed]
+        citation_ids:
+          type: array
+          items:
+            type: string
+        file_ids:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+    MessagePart:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [text, markdown, image, file]
+        text:
+          type: string
+        file_id:
+          type: string
+        mime_type:
+          type: string
+    MessageListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        next_cursor:
+          type: string
+          nullable: true
+    ChatCompletionRequest:
+      type: object
+      required: [conversation_id, message]
+      properties:
+        conversation_id:
+          type: string
+        message:
+          $ref: "#/components/schemas/NewUserMessage"
+        model_profile:
+          type: string
+          default: reasoning
+        retrieval:
+          $ref: "#/components/schemas/RetrievalRequest"
+    NewUserMessage:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessagePart"
+        file_ids:
+          type: array
+          items:
+            type: string
+    RetrievalRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          default: true
+        filters:
+          $ref: "#/components/schemas/SearchFilters"
+    ChatCompletionResponse:
+      type: object
+      required: [message, citations]
+      properties:
+        message:
+          $ref: "#/components/schemas/Message"
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Citation"
+    FileRecord:
+      type: object
+      required: [id, original_filename, content_type, size_bytes, sha256, ingestion_status, created_at]
+      properties:
+        id:
+          type: string
+        original_filename:
+          type: string
+        content_type:
+          type: string
+        extension:
+          type: string
+        size_bytes:
+          type: integer
+        sha256:
+          type: string
+        ingestion_status:
+          type: string
+          enum: [queued, running, ready, failed, deleted]
+        document_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    FileListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileRecord"
+        next_cursor:
+          type: string
+          nullable: true
+    FileUploadResponse:
+      type: object
+      required: [file, ingestion_job]
+      properties:
+        file:
+          $ref: "#/components/schemas/FileRecord"
+        ingestion_job:
+          $ref: "#/components/schemas/IngestionJob"
+    FilePreviewResponse:
+      type: object
+      required: [file_id, document_id, pages]
+      properties:
+        file_id:
+          type: string
+        document_id:
+          type: string
+        pages:
+          type: array
+          items:
+            type: object
+            required: [page_number, markdown]
+            properties:
+              page_number:
+                type: integer
+              markdown:
+                type: string
+    IngestionJob:
+      type: object
+      required: [id, file_id, status, stage, progress, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        file_id:
+          type: string
+        document_id:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed, cancelled]
+        stage:
+          type: string
+          enum: [created, validated, parsing, ocr, layout, chunking, embedding, graph, completed, failed]
+        progress:
+          type: object
+          required: [current, total, unit]
+          properties:
+            current:
+              type: integer
+            total:
+              type: integer
+            unit:
+              type: string
+        error:
+          type: object
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    SearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          minLength: 1
+        filters:
+          $ref: "#/components/schemas/SearchFilters"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 12
+    SearchFilters:
+      type: object
+      properties:
+        document_ids:
+          type: array
+          items:
+            type: string
+        file_ids:
+          type: array
+          items:
+            type: string
+        document_types:
+          type: array
+          items:
+            type: string
+            enum: [pdf, image, docx, pptx, xlsx]
+        content_types:
+          type: array
+          items:
+            type: string
+            enum: [text, table, figure, image, chart, diagram]
+        page_range:
+          type: object
+          properties:
+            start:
+              type: integer
+              minimum: 1
+            end:
+              type: integer
+              minimum: 1
+        date_range:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+    SearchResponse:
+      type: object
+      required: [query, results]
+      properties:
+        query:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchResult"
+    SearchResult:
+      type: object
+      required: [chunk_id, document_id, source_title, score, text, page_start]
+      properties:
+        chunk_id:
+          type: string
+        document_id:
+          type: string
+        file_id:
+          type: string
+        source_title:
+          type: string
+        score:
+          type: number
+        text:
+          type: string
+        page_start:
+          type: integer
+        page_end:
+          type: integer
+        section:
+          type: string
+        retrieval_methods:
+          type: array
+          items:
+            type: string
+    Citation:
+      type: object
+      required: [id, source_title, document_id, chunk_id, page_start, confidence, snippet]
+      properties:
+        id:
+          type: string
+        source_title:
+          type: string
+        document_id:
+          type: string
+        file_id:
+          type: string
+        chunk_id:
+          type: string
+        page_start:
+          type: integer
+        page_end:
+          type: integer
+        section:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        snippet:
+          type: string
+        bbox:
+          $ref: "#/components/schemas/BoundingBox"
+    BoundingBox:
+      type: object
+      required: [page, x0, y0, x1, y1]
+      properties:
+        page:
+          type: integer
+        x0:
+          type: number
+        y0:
+          type: number
+        x1:
+          type: number
+        y1:
+          type: number
+    CitationSourceResponse:
+      type: object
+      required: [citation, preview_markdown]
+      properties:
+        citation:
+          $ref: "#/components/schemas/Citation"
+        preview_markdown:
+          type: string
+    UserSettings:
+      type: object
+      required: [theme, default_model_profile, streaming_enabled, markdown_code_theme, citation_display]
+      properties:
+        theme:
+          type: string
+          enum: [light, dark, system]
+        default_model_profile:
+          type: string
+        streaming_enabled:
+          type: boolean
+        markdown_code_theme:
+          type: string
+        citation_display:
+          type: string
+          enum: [inline, drawer, inline_and_drawer]
+    UserSettingsUpdate:
+      type: object
+      properties:
+        theme:
+          type: string
+          enum: [light, dark, system]
+        default_model_profile:
+          type: string
+        streaming_enabled:
+          type: boolean
+        markdown_code_theme:
+          type: string
+        citation_display:
+          type: string
+          enum: [inline, drawer, inline_and_drawer]
+    SystemSettings:
+      type: object
+      required: [model_profiles, retrieval, uploads]
+      properties:
+        model_profiles:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ModelProfile"
+        retrieval:
+          type: object
+          required: [dense_top_k, bm25_top_k, graph_top_k, rerank_top_k, citation_min_confidence]
+          properties:
+            dense_top_k:
+              type: integer
+            bm25_top_k:
+              type: integer
+            graph_top_k:
+              type: integer
+            rerank_top_k:
+              type: integer
+            citation_min_confidence:
+              type: number
+        uploads:
+          type: object
+          required: [max_file_size_mb, allowed_extensions]
+          properties:
+            max_file_size_mb:
+              type: integer
+            allowed_extensions:
+              type: array
+              items:
+                type: string
+    ModelProfile:
+      type: object
+      required: [chat_model, vision_model, embedding_model, temperature, max_output_tokens, context_window_tokens]
+      properties:
+        chat_model:
+          type: string
+        vision_model:
+          type: string
+        embedding_model:
+          type: string
+        temperature:
+          type: number
+        max_output_tokens:
+          type: integer
+        context_window_tokens:
+          type: integer
+    ModelStatusResponse:
+      type: object
+      required: [lm_studio, profiles]
+      properties:
+        lm_studio:
+          type: object
+          required: [available, endpoint, loaded_models]
+          properties:
+            available:
+              type: boolean
+            endpoint:
+              type: string
+            loaded_models:
+              type: array
+              items:
+                type: string
+        profiles:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ModelProfile"
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [live]
+    ReadinessResponse:
+      type: object
+      required: [status, dependencies]
+      properties:
+        status:
+          type: string
+          enum: [ready, degraded, unavailable]
+        dependencies:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [ready, degraded, unavailable]
+    MetricsSummary:
+      type: object
+      required: [requests, models, retrieval, ingestion, gpu]
+      properties:
+        requests:
+          type: object
+          additionalProperties: true
+        models:
+          type: object
+          additionalProperties: true
+        retrieval:
+          type: object
+          additionalProperties: true
+        ingestion:
+          type: object
+          additionalProperties: true
+        gpu:
+          type: object
+          additionalProperties: true
+    AuditEvent:
+      type: object
+      required: [id, event_type, actor_user_id, resource_type, resource_id, result, created_at]
+      properties:
+        id:
+          type: string
+        event_type:
+          type: string
+        actor_user_id:
+          type: string
+        resource_type:
+          type: string
+        resource_id:
+          type: string
+        result:
+          type: string
+          enum: [success, failure]
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+    CreateUserRequest:
+      type: object
+      required: [email, display_name, password, roles]
+      properties:
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+        password:
+          type: string
+          minLength: 12
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Role"
+    UpdateUserRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Role"
+        status:
+          type: string
+          enum: [active, disabled]
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, correlation_id]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+            correlation_id:
+              type: string
