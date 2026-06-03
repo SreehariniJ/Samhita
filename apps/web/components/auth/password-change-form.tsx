@@ -1,19 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, KeyRound, Loader2 } from "lucide-react";
-import { useChangePassword } from "@/hooks/use-auth";
-import { getErrorMessage } from "@/lib/api/errors";
+import { useChangePassword, useSessionRecovery } from "@/hooks/use-auth";
+import { ApiError, getErrorMessage } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LoadingCard } from "@/components/states/loading-card";
 
 export function PasswordChangeForm() {
+  const router = useRouter();
+  const session = useSessionRecovery();
   const mutation = useChangePassword();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+
+  useEffect(() => {
+    if (session.error instanceof ApiError && session.error.status === 401) {
+      router.replace("/login");
+    }
+  }, [router, session.error]);
+
+  if (session.isLoading) {
+    return <LoadingCard label="Recovering session" />;
+  }
 
   return (
     <Card className="glass-panel w-full max-w-md shadow-glow">

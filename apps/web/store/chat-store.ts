@@ -25,6 +25,7 @@ type ChatState = {
   streamByConversation: Record<string, ConversationStreamState>;
   addLocalMessage: (conversationId: string, message: LocalMessage) => void;
   replaceLocalMessageId: (conversationId: string, localId: string, messageId: string) => void;
+  replaceAssistantMessage: (conversationId: string, targetId: string, message: Message, citations?: Citation[]) => void;
   appendAssistantDelta: (conversationId: string, messageId: string, delta: string) => void;
   setAssistantStatus: (conversationId: string, messageId: string, status: MessageStatus, tokenUsage?: TokenUsage) => void;
   addCitation: (conversationId: string, messageId: string, citation: Citation) => void;
@@ -56,6 +57,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
         )
       }
     })),
+  replaceAssistantMessage: (conversationId, targetId, message, citations = []) =>
+    set((state) => {
+      const messages = state.localMessagesByConversation[conversationId] ?? [];
+      const nextMessage: LocalMessage = {
+        ...message,
+        citations,
+        local: false
+      };
+      const exists = messages.some((item) => item.id === targetId || item.id === message.id);
+      const nextMessages = exists
+        ? messages.map((item) => (item.id === targetId || item.id === message.id ? nextMessage : item))
+        : [...messages, nextMessage];
+
+      return {
+        localMessagesByConversation: {
+          ...state.localMessagesByConversation,
+          [conversationId]: nextMessages
+        }
+      };
+    }),
   appendAssistantDelta: (conversationId, messageId, delta) =>
     set((state) => {
       const messages = state.localMessagesByConversation[conversationId] ?? [];
@@ -99,7 +120,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamByConversation: {
         ...state.streamByConversation,
         [conversationId]: {
-          ...(state.streamByConversation[conversationId] ?? { status }),
+          ...(state.streamByConversation[conversationId] ?? {}),
           status
         }
       }
@@ -117,16 +138,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     })),
   setStreamState: (conversationId, state) =>
-    set((current) => ({
-      streamByConversation: {
-        ...current.streamByConversation,
-        [conversationId]: {
-          status: "queued",
-          ...(current.streamByConversation[conversationId] ?? {}),
-          ...state
+    set((current) => {
+      const previous = current.streamByConversation[conversationId];
+      return {
+        streamByConversation: {
+          ...current.streamByConversation,
+          [conversationId]: {
+            ...(previous ?? {}),
+            ...state,
+            status: state.status ?? previous?.status ?? "queued"
+          }
         }
-      }
-    })),
+      };
+    }),
   clearConversationLocal: (conversationId) =>
     set((state) => {
       const next = { ...state.localMessagesByConversation };

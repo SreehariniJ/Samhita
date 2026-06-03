@@ -55,9 +55,10 @@ export function ChatWorkspace({ conversationId }: { conversationId: string }) {
       text: payload.text,
       fileIds: payload.fileIds,
       modelProfile: payload.modelProfile ?? modelProfile,
-      retrievalEnabled: true
+      retrievalEnabled: true,
+      streamingEnabled: settings.data?.streaming_enabled ?? true
     });
-  }, [conversationId, modelProfile, send]);
+  }, [conversationId, modelProfile, send, settings.data?.streaming_enabled]);
 
   useEffect(() => {
     if (!messages.data || status !== "complete" || !localMessages.length) return;
@@ -131,7 +132,8 @@ export function ChatWorkspace({ conversationId }: { conversationId: string }) {
             text,
             fileIds,
             modelProfile,
-            retrievalEnabled: true
+            retrievalEnabled: true,
+            streamingEnabled: settings.data?.streaming_enabled ?? true
           })
         }
       />

@@ -12,12 +12,14 @@ type SendOptions = {
   fileIds: string[];
   modelProfile?: string;
   retrievalEnabled?: boolean;
+  streamingEnabled?: boolean;
 };
 
 export function useChatStream(conversationId: string) {
   const queryClient = useQueryClient();
   const addLocalMessage = useChatStore((state) => state.addLocalMessage);
   const replaceLocalMessageId = useChatStore((state) => state.replaceLocalMessageId);
+  const replaceAssistantMessage = useChatStore((state) => state.replaceAssistantMessage);
   const appendAssistantDelta = useChatStore((state) => state.appendAssistantDelta);
   const setAssistantStatus = useChatStore((state) => state.setAssistantStatus);
   const addCitation = useChatStore((state) => state.addCitation);
@@ -26,7 +28,7 @@ export function useChatStream(conversationId: string) {
   const streamState = useChatStore((state) => state.streamByConversation[conversationId]);
 
   const send = useCallback(
-    async ({ text, fileIds, modelProfile, retrievalEnabled = true }: SendOptions) => {
+    async ({ text, fileIds, modelProfile, retrievalEnabled = true, streamingEnabled = true }: SendOptions) => {
       const trimmed = text.trim();
       if (!trimmed && fileIds.length === 0) {
         return;
@@ -75,6 +77,15 @@ export function useChatStream(conversationId: string) {
       };
 
       try {
+        if (!streamingEnabled) {
+          const response = await ChatApi.complete(request);
+          replaceAssistantMessage(conversationId, localAssistantId, response.message, response.citations);
+          setStreamState(conversationId, { status: "complete", assistantMessageId: response.message.id, abortController: undefined });
+          queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+          queryClient.invalidateQueries({ queryKey: ["conversations"] });
+          return;
+        }
+
         await ChatApi.stream(
           request,
           {
@@ -138,7 +149,7 @@ export function useChatStream(conversationId: string) {
         toast.error(error instanceof Error ? error.message : "Response failed");
       }
     },
-    [addCitation, addLocalMessage, appendAssistantDelta, conversationId, queryClient, replaceLocalMessageId, setAssistantStatus, setStreamState]
+    [addCitation, addLocalMessage, appendAssistantDelta, conversationId, queryClient, replaceAssistantMessage, replaceLocalMessageId, setAssistantStatus, setStreamState]
   );
 
   return {

@@ -47,16 +47,26 @@ export function CitationDrawer() {
                   <FileText className="size-3.5" />
                   Chunk {citation.chunk_id}
                 </div>
-                <p className="text-sm leading-6">{citation.snippet}</p>
+                <mark className="block rounded-md bg-primary/10 p-2 text-sm leading-6 text-foreground ring-1 ring-primary/25">
+                  {citation.snippet}
+                </mark>
               </section>
               {citation.bbox ? (
                 <section className="rounded-lg border border-primary/25 bg-primary/5 p-3 text-sm">
                   <div className="flex items-center gap-2 font-medium text-primary">
                     <LocateFixed className="size-4" />
-                    Page reference
+                    Highlighted reference
                   </div>
-                  <p className="mt-2 text-muted-foreground">
-                    x{citation.bbox.x0.toFixed(0)}, y{citation.bbox.y0.toFixed(0)} to x{citation.bbox.x1.toFixed(0)}, y{citation.bbox.y1.toFixed(0)}
+                  <div className="mt-3 aspect-[4/3] rounded-md border border-primary/20 bg-background p-3">
+                    <div className="relative h-full rounded border border-dashed border-border bg-muted/35">
+                      <div className="absolute inset-x-6 top-7 h-2 rounded bg-muted" />
+                      <div className="absolute inset-x-6 top-14 h-2 rounded bg-muted" />
+                      <div className="absolute inset-x-6 top-[5.25rem] h-2 rounded bg-muted" />
+                      <div className="absolute left-[18%] top-[34%] h-[18%] w-[52%] rounded bg-primary/20 ring-2 ring-primary/45" />
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Page {citation.bbox.page}: x{citation.bbox.x0.toFixed(0)}, y{citation.bbox.y0.toFixed(0)} to x{citation.bbox.x1.toFixed(0)}, y{citation.bbox.y1.toFixed(0)}
                   </p>
                 </section>
               ) : null}
@@ -77,7 +87,7 @@ export function CitationDrawer() {
                     <Skeleton className="h-4 w-5/6" />
                   </div>
                 ) : source.data ? (
-                  <div className="rounded-lg border border-border bg-background p-3">
+                  <div className="rounded-lg border border-primary/25 bg-background p-3 shadow-sm shadow-primary/5">
                     <MarkdownRenderer content={source.data.preview_markdown} />
                   </div>
                 ) : (

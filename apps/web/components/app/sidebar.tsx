@@ -58,7 +58,10 @@ export function SidebarContent({ mobile = false }: { mobile?: boolean }) {
   const createConversation = useCreateConversation();
   const logout = useLogout();
 
-  const items = query.trim() ? search.data?.items ?? [] : conversations.data?.items ?? [];
+  const items = useMemo(
+    () => (query.trim() ? search.data?.items ?? [] : conversations.data?.items ?? []),
+    [conversations.data?.items, query, search.data?.items]
+  );
   const pinned = useMemo(() => items.filter((item) => item.pinned), [items]);
   const regular = useMemo(() => items.filter((item) => !item.pinned), [items]);
 
@@ -78,7 +81,7 @@ export function SidebarContent({ mobile = false }: { mobile?: boolean }) {
             <div className="truncate text-xs text-sidebar-foreground/60">Private workspace</div>
           </div>
         </div>
-        <Button variant="sidebar" className="h-10 w-full bg-white/8" onClick={() => createConversation.mutate({})} disabled={createConversation.isPending}>
+        <Button variant="sidebar" className="h-10 w-full bg-white/10" onClick={() => createConversation.mutate({})} disabled={createConversation.isPending}>
           <MessageSquarePlus className="size-4" />
           New Chat
         </Button>
@@ -87,7 +90,7 @@ export function SidebarContent({ mobile = false }: { mobile?: boolean }) {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className="border-sidebar-border bg-white/8 pl-9 text-sidebar-foreground placeholder:text-sidebar-foreground/45"
+            className="border-sidebar-border bg-white/10 pl-9 text-sidebar-foreground placeholder:text-sidebar-foreground/45"
             placeholder="Search chats"
           />
         </label>
@@ -210,7 +213,7 @@ function ConversationLink({ href, title, date, active, onClick }: { href: string
 
 function SidebarNavLink({ href, active, icon, label, onClick }: { href: string; active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
-    <Link href={href} onClick={onClick} className={cn("flex h-9 items-center gap-2 rounded-md px-3 text-sm hover:bg-white/10", active && "bg-white/12 text-white")}>
+    <Link href={href} onClick={onClick} className={cn("flex h-9 items-center gap-2 rounded-md px-3 text-sm hover:bg-white/10", active && "bg-white/15 text-white")}>
       {icon}
       {label}
     </Link>

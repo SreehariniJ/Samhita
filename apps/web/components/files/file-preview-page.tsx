@@ -39,7 +39,7 @@ export function FilePreviewPage({ fileId }: { fileId: string }) {
   return (
     <RouteFrame
       title={file.data?.original_filename ?? "File"}
-      description={file.data ? `${file.data.content_type} · ${formatBytes(file.data.size_bytes)}` : undefined}
+      description={file.data ? `${file.data.content_type} - ${formatBytes(file.data.size_bytes)}` : undefined}
       actions={
         <>
           <Button asChild variant="outline" size="sm">

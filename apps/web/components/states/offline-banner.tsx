@@ -11,7 +11,7 @@ export function OfflineBanner() {
   }
 
   return (
-    <div className="flex items-center justify-center gap-2 border-b border-amber-500/25 bg-amber-500/12 px-3 py-2 text-xs font-medium text-amber-800 dark:text-amber-200" role="status">
+    <div className="flex items-center justify-center gap-2 border-b border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-800 dark:text-amber-200" role="status">
       <WifiOff className="size-4" />
       <span>Offline</span>
     </div>
