@@ -1,7 +1,7 @@
 https://chatgpt.com/share/6a2143bd-86e4-8323-b062-af3b90cbd476
 https://chatgpt.com/share/6a22a274-1b08-8320-a1ec-3e1a9f266ca1
 That's the right approach. Don't start coding immediately.
-
+https://drive.google.com/file/d/1fvJyWp8HwgWsAPF2f9X0G_psMXRp_LVT/view?usp=sharing
 For a system of this size, the biggest mistake is building components before locking down the infrastructure, model serving, storage, and deployment architecture.
 
 Based on everything we've discussed, I'd suggest treating this as a sequence of phases, where each phase produces a working, testable system.
